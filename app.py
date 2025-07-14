@@ -50,12 +50,12 @@ if MODE == "Breakout Strategy":
 
             
             def breakout_strategy(row):
-            if row[('Close', symbol)] > row[('resistance', '')]:
-                return 1
-            elif row[('Close', symbol)] < row[('support', '')]:
-                return -1
-            else:
-                return 0
+                if row[('Close', symbol)] > row[('resistance', '')]:
+                    return 1
+                elif row[('Close', symbol)] < row[('support', '')]:
+                    return -1
+                else:
+                    return 0
     df[('signal', '')] = df.apply(breakout_strategy, axis=1)
 
     fig, ax = plt.subplots(figsize=(12, 4))
