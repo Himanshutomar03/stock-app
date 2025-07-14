@@ -41,14 +41,12 @@ if MODE == "Breakout Strategy":
             df['resistance'] = df['resistance'].ffill()
             df['support'] = df['support'].ffill()
     
-            def breakout_strategy(row):
-                if row['Close'] > row['resistance']:
-                    return 1
-                elif row['Close'] < row['support']:
-                    return -1
-                else:
-                    return 0
-            df['signal'] = df.apply(breakout_strategy, axis=1)
+            # Vectorized breakout strategy for performance and reliability
+            df['signal'] = 0  # Default to no signal
+            # Buy signal when close breaks above resistance
+            df.loc[df['Close'] > df['resistance'], 'signal'] = 1
+            # Sell signal when close breaks below support
+            df.loc[df['Close'] < df['support'], 'signal'] = -1
     
             fig, ax = plt.subplots(figsize=(12, 4))
             ax.set_title('Support/Resistance Breakout Strategy')
