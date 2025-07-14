@@ -41,29 +41,41 @@ if MODE == "Breakout Strategy":
             df['resistance'] = df['resistance'].ffill()
             df['support'] = df['support'].ffill()
     
-            # Vectorized breakout strategy for performance and reliability
-            df['signal'] = 0  # Default to no signal
-            # Buy signal when close breaks above resistance
-            df.loc[df['Close'] > df['resistance'], 'signal'] = 1
-            # Sell signal when close breaks below support
-            df.loc[df['Close'] < df['support'], 'signal'] = -1
-    
-            fig, ax = plt.subplots(figsize=(12, 4))
-            ax.set_title('Support/Resistance Breakout Strategy')
-            ax.set_xlabel('Date')
-            ax.set_ylabel('Price')
-            ax.plot(df.index, df['Close'], label='Close', linewidth=1.5)
-            ax.plot(df.index, df['resistance'], label='Resistance', linestyle='--', color='red', alpha=0.5)
-            ax.plot(df.index, df['support'], label='Support', linestyle='--', color='green', alpha=0.5)
-            ax.scatter(df.index[df['signal'] == 1], df['Close'][df['signal'] == 1],
-                    marker='^', color='green', label='Buy', alpha=0.8)
-            ax.scatter(df.index[df['signal'] == -1], df['Close'][df['signal'] == -1],
-                    marker='v', color='red', label='Sell', alpha=0.8)
+            # # Vectorized breakout strategy for performance and reliability
+            # df['signal'] = 0  # Default to no signal
+            # # Buy signal when close breaks above resistance
+            # df.loc[df['Close'] > df['resistance'], 'signal'] = 1
+            # # Sell signal when close breaks below support
+            # df.loc[df['Close'] < df['support'], 'signal'] = -1
+
             
-            ax.legend()
-            ax.grid(True)
-            fig.tight_layout()
-            st.pyplot(fig)
+            def breakout_strategy(row):
+            if row[('Close', symbol)] > row[('resistance', '')]:
+                return 1
+            elif row[('Close', symbol)] < row[('support', '')]:
+                return -1
+            else:
+                return 0
+    df[('signal', '')] = df.apply(breakout_strategy, axis=1)
+
+    fig, ax = plt.subplots(figsize=(12, 4))
+    ax.set_title('Support/Resistance Breakout Strategy')
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Price')
+    ax.plot(df.index, df[('Close', symbol)], label='Close', linewidth=1.5)
+    ax.plot(df['resistance'], label='Resistance', linestyle='--', color='red', alpha=0.5)
+    ax.plot(df['support'], label='Support', linestyle='--', color='green', alpha=0.5)
+    ax.scatter(df.index[df[('signal', '')] == 1], df[('Close', symbol)][df[('signal', '')] == 1],
+                marker='^', color='green', label='Buy', alpha=0.8)
+    ax.scatter(df.index[df[('signal', '')] == -1], df[('Close', symbol)][df[('signal', '')] == -1],
+                marker='v', color='red', label='Sell', alpha=0.8)
+    ax.scatter(df.index[df[('signal', '')] == 0], df[('Close', symbol)][df[('signal', '')] == 0], 
+                marker='o', color='blue', label='Hold', alpha=0.5)
+    ax.legend()
+    ax.grid(True)
+    fig.tight_layout()
+    st.pyplot(fig)
+
 
 elif MODE == "Portfolio Optimization":
     st.header("Portfolio Optimization with Efficient Frontier")
@@ -220,11 +232,11 @@ elif MODE == "Portfolio Optimization":
         st.pyplot(fig)
 
 
-elif MODE == "Intraday Prediction":
-    st.header("Intraday Prediction with Random Forest")
+elif MODE == "Long term Prediction":
+    st.header("Prediction with Random Forest")
     ticker = st.text_input("Enter Ticker:","HAL.NS")
     if ticker:
-        df = yf.download(ticker, period='10d', interval='30m', auto_adjust=True)
+        df = yf.download(ticker, period='1y', interval='1d', auto_adjust=True)
         if df is None or df.empty:
             st.error(f"Could not retrieve data for {ticker}.")
             st.stop()
