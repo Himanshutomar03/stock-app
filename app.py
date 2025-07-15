@@ -222,7 +222,7 @@ elif MODE == "Stock Price Prediction":
     st.header("Stock Price Prediction with Random Forest")
     
     ticker = st.text_input("Enter Ticker:","HAL.NS")
-    df = yf.download(ticker, period='1y', interval='1d', auto_adjust=True)
+    df = yf.download(ticker, period='5y', interval='1d', auto_adjust=True)
     df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
     df.dropna(inplace=True)
     df['Target'] = df['Close'].shift(-1)
@@ -243,8 +243,8 @@ elif MODE == "Stock Price Prediction":
     ax.plot(y_test.values, label='Actual', color='blue')
     ax.plot(y_pred, label='Predicted', color='red')
     ax.set_title(f"Stock Price Prediction for {ticker}")
-    ax.set_xlevel("Days")
-    ax.set_ylevel("Price")
+    ax.set_xlabel("Days")
+    ax.set_ylabel("Price")
     ax.legend()
     ax.grid(True)
     st.pyplot(fig)
