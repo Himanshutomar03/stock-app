@@ -14,68 +14,53 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 st.set_page_config(layout="wide")
 st.title("Stock Price Prediction & Portfolio Optimization")
-MODE = st.sidebar.selectbox("Select Mode", ["Breakout Strategy", "Portfolio Optimization", "Intraday Prediction"])
+MODE = st.sidebar.selectbox("Select Mode", ["Breakout Strategy", "Portfolio Optimization", "Stock Price Prediction"])
 
 if MODE == "Breakout Strategy":
     st.header("Breakout Strategy with Support/Resistance")
     stocks = st.text_input("Enter Ticker Symbols (comma separated):")
-    if stocks:
-        stock_list = [s.strip().upper() for s in stocks.split(",") if s.strip()]
-        n = 10
-        for symbol in stock_list:
-            st.subheader(f"{symbol}")
-    
-            print(f"\nProcessing {symbol}...")
-            df = yf.download(symbol, period='1y', interval='1d', auto_adjust=True)
-    
-            if df is None or df.empty:
-                st.warning(f"Could not retrieve data for {symbol}. Skipping.")
-                continue
+    stock_list = [s.strip().upper() for s in stocks.split(",") if s.strip()]
+    n = 10
+    for symbol in stock_list:
+        st.subheader(f"{symbol}")
 
-            df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
-            df.dropna(inplace=True)
-    
-            df['resistance'] = df.iloc[argrelextrema(df['High'].to_numpy(), np.greater_equal, order=n)[0]]['High']
-            df['support'] = df.iloc[argrelextrema(df['Low'].to_numpy(), np.less_equal, order=n)[0]]['Low']
-    
-            df['resistance'] = df['resistance'].ffill()
-            df['support'] = df['support'].ffill()
-    
-            # # Vectorized breakout strategy for performance and reliability
-            # df['signal'] = 0  # Default to no signal
-            # # Buy signal when close breaks above resistance
-            # df.loc[df['Close'] > df['resistance'], 'signal'] = 1
-            # # Sell signal when close breaks below support
-            # df.loc[df['Close'] < df['support'], 'signal'] = -1
+        print(f"\nProcessing {symbol}...")
+        df = yf.download(symbol, period='1y', interval='1d', auto_adjust=True)
 
-            
-            def breakout_strategy(row):
-                if row[('Close', symbol)] > row[('resistance', '')]:
-                    return 1
-                elif row[('Close', symbol)] < row[('support', '')]:
-                    return -1
-                else:
-                    return 0
-    df[('signal', '')] = df.apply(breakout_strategy, axis=1)
+        df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
+        df.dropna(inplace=True)
 
-    fig, ax = plt.subplots(figsize=(12, 4))
-    ax.set_title('Support/Resistance Breakout Strategy')
-    ax.set_xlabel('Date')
-    ax.set_ylabel('Price')
-    ax.plot(df.index, df[('Close', symbol)], label='Close', linewidth=1.5)
-    ax.plot(df['resistance'], label='Resistance', linestyle='--', color='red', alpha=0.5)
-    ax.plot(df['support'], label='Support', linestyle='--', color='green', alpha=0.5)
-    ax.scatter(df.index[df[('signal', '')] == 1], df[('Close', symbol)][df[('signal', '')] == 1],
+        df['resistance'] = df.iloc[argrelextrema(df['High'].values, np.greater_equal, order=n)[0]]['High']
+        df['support'] = df.iloc[argrelextrema(df['Low'].values, np.less_equal, order=n)[0]]['Low']
+
+        df['resistance'] = df['resistance'].ffill()
+        df['support'] = df['support'].ffill()
+
+        def breakout_strategy(row):
+            if row[('Close', symbol)] > row[('resistance', '')]:
+                return 1
+            elif row[('Close', symbol)] < row[('support', '')]:
+                return -1
+            else:
+                return 0
+        df[('signal', '')] = df.apply(breakout_strategy, axis=1)
+
+        fig, ax = plt.subplots(figsize=(12, 4))
+        ax.set_title('Support/Resistance Breakout Strategy')
+        ax.set_xlabel('Date')
+        ax.set_ylabel('Price')
+        ax.plot(df.index, df[('Close', symbol)], label='Close', linewidth=1.5)
+        ax.plot(df['resistance'], label='Resistance', linestyle='--', color='red', alpha=0.5)
+        ax.plot(df['support'], label='Support', linestyle='--', color='green', alpha=0.5)
+        ax.scatter(df.index[df[('signal', '')] == 1], df[('Close', symbol)][df[('signal', '')] == 1],
                 marker='^', color='green', label='Buy', alpha=0.8)
-    ax.scatter(df.index[df[('signal', '')] == -1], df[('Close', symbol)][df[('signal', '')] == -1],
+        ax.scatter(df.index[df[('signal', '')] == -1], df[('Close', symbol)][df[('signal', '')] == -1],
                 marker='v', color='red', label='Sell', alpha=0.8)
-    ax.scatter(df.index[df[('signal', '')] == 0], df[('Close', symbol)][df[('signal', '')] == 0], 
-                marker='o', color='blue', label='Hold', alpha=0.5)
-    ax.legend()
-    ax.grid(True)
-    fig.tight_layout()
-    st.pyplot(fig)
-
+        
+        ax.legend()
+        ax.grid(True)
+        fig.tight_layout()
+        st.pyplot(fig)
 
 elif MODE == "Portfolio Optimization":
     st.header("Portfolio Optimization with Efficient Frontier")
@@ -90,7 +75,7 @@ elif MODE == "Portfolio Optimization":
         adj_close_df = pd.DataFrame()
         for ticker in tickers:
             data = yf.download(ticker, start="2020-01-01", end="2025-06-30", auto_adjust=True)
-            if data is not None and not data.empty and 'Close' in data.columns:
+            if not data.empty and 'Close' in data.columns:
                 adj_close_df[ticker] = data['Close']
     
         if adj_close_df.empty or adj_close_df.shape[0] < 30:
@@ -100,7 +85,6 @@ elif MODE == "Portfolio Optimization":
         adj_close_df.ffill(inplace=True)
         adj_close_df.bfill(inplace=True)
     
-        # Utility Functions
         def calculate_rsi(data, periods=14):
             delta = data.diff()
             gain = delta.where(delta > 0, 0)
@@ -158,7 +142,7 @@ elif MODE == "Portfolio Optimization":
                 r2 = r2_score(y_test, y_pred)
                 st.write(f"{ticker:<15} {mae:.6f} {rmse:.6f} {r2:.6f}")
     
-                latest_features = X.iloc[-1:].to_numpy()
+                latest_features = X.iloc[-1:].values
                 predicted_daily_return = best_xgb.predict(latest_features)[0]
                 predicted_annual_return = predicted_daily_return * 252
                 predicted_returns[ticker] = predicted_annual_return
@@ -190,7 +174,7 @@ elif MODE == "Portfolio Optimization":
         # Discrete Allocation
         st.subheader("Discrete Allocation")
         latest_prices = get_latest_prices(adj_close_df[valid_tickers])
-        da = DiscreteAllocation(weights_dict, latest_prices, total_portfolio_value=int(capital))
+        da = DiscreteAllocation(weights_dict, latest_prices, total_portfolio_value=capital)
         allocation, leftover = da.greedy_portfolio()
     
         alloc_df = pd.DataFrame([
@@ -232,35 +216,30 @@ elif MODE == "Portfolio Optimization":
         st.pyplot(fig)
 
 
-elif MODE == "Long term Prediction":
-    st.header("Prediction with Random Forest")
+elif MODE == "Stock Price Prediction":
+    st.header("Stock Price Prediction with Random Forest")
     ticker = st.text_input("Enter Ticker:","HAL.NS")
-    if ticker:
-        df = yf.download(ticker, period='1y', interval='1d', auto_adjust=True)
-        if df is None or df.empty:
-            st.error(f"Could not retrieve data for {ticker}.")
-            st.stop()
+    df = yf.download(ticker, period='10d', interval='30m', auto_adjust=True)[['Open', 'High', 'Low', 'Close', 'Volume']]
+    df.dropna(inplace=True)
+    df['Target'] = df['Close'].shift(-1)
+    df.dropna(inplace=True)
 
-        df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
-        df.dropna(inplace=True)
-        df['Target'] = df['Close'].shift(-1)
-        df.dropna(inplace=True)
+    X = df[['Open', 'High', 'Low', 'Volume']]
+    y = df['Target']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, shuffle=False, test_size=0.2)
 
-        X = df[['Open', 'High', 'Low', 'Volume']]
-        y = df['Target']
-        X_train, X_test, y_train, y_test = train_test_split(X, y, shuffle=False, test_size=0.2)
+    model = RandomForestRegressor(n_estimators=100)
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+
+    st.write("### R² Score:", r2_score(y_test, y_pred))
+    st.write("### MSE:", mean_squared_error(y_test, y_pred))
+
+    fig, ax = plt.subplots(figsize=(12, 4))
+    ax.plot(y_test.values, label='Actual', color='blue')
+    ax.plot(y_pred, label='Predicted', color='red')
+    ax.set_title(f"Intraday Price Prediction for {ticker}")
+    ax.legend()
+    ax.grid(True)
+    st.pyplot(fig)
     
-        model = RandomForestRegressor(n_estimators=100)
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
-    
-        st.write("### R² Score:", r2_score(y_test, y_pred))
-        st.write("### MSE:", mean_squared_error(y_test, y_pred))
-    
-        fig, ax = plt.subplots(figsize=(12, 4))
-        ax.plot(y_test.index, y_test, label='Actual', color='blue')
-        ax.plot(y_test.index, y_pred, label='Predicted', color='red')
-        ax.set_title(f"Intraday Price Prediction for {ticker}")
-        ax.legend()
-        ax.grid(True)
-        st.pyplot(fig) 
