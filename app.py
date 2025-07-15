@@ -3,7 +3,6 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import ta
 from datetime import datetime, timedelta
 from scipy.signal import argrelextrema
 from pypfopt import EfficientFrontier, risk_models, expected_returns, plotting
@@ -15,9 +14,26 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 st.set_page_config(layout="wide")
 st.title("Stock Price Prediction & Portfolio Optimization")
-MODE = st.sidebar.selectbox("Select Mode", ["Breakout Strategy", "Portfolio Optimization", "Stock Price Prediction"])
+page = st.sidebar.radio("Navigation", ["About", "Stock Price Prediction", "Breakout Strategy", "Portfolio Optimization" ])
 
-if MODE == "Breakout Strategy":
+if page == "About":
+    st.header("About This App")
+    st.markdown("""
+    This is a Streamlit web app that uses Machine Learning and Modern Portfolio Theory to predict stock prices ,price breakout, stock returns and optimize your     portfolio for maximum performance and helps you make smarter portfolio decisions.
+    This **Stock Price Prediction & Portfolio Optimization** app is built using **Streamlit** and several popular Python libraries like:
+    - `yfinance` for financial data
+    - `XGBoost` and `Random Forest` for machine learning predictions
+    - `PyPortfolioOpt` for portfolio optimization
+    - `Matplotlib` for plotting
+    
+    ### Features
+    - **Breakout Strategy** with support & resistance signals
+    - **Stock Price Prediction** using Random Forest Regressor
+    - **Portfolio Optimization** using Efficient Frontier and ML-predicted returns
+    ---
+    """)
+
+elif page == "Breakout Strategy":
     st.header("Breakout Strategy with Support/Resistance")
     stocks = st.text_input("Enter Ticker Symbols (comma separated):")
     stock_list = [s.strip().upper() for s in stocks.split(",") if s.strip()]
@@ -27,13 +43,10 @@ if MODE == "Breakout Strategy":
 
         print(f"\nProcessing {symbol}...")
         df = yf.download(symbol, period='1y', interval='1d', auto_adjust=True)
-
         df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
         df.dropna(inplace=True)
-
         df['resistance'] = df.iloc[argrelextrema(df['High'].values, np.greater_equal, order=n)[0]]['High']
         df['support'] = df.iloc[argrelextrema(df['Low'].values, np.less_equal, order=n)[0]]['Low']
-
         df['resistance'] = df['resistance'].ffill()
         df['support'] = df['support'].ffill()
 
@@ -57,13 +70,12 @@ if MODE == "Breakout Strategy":
                 marker='^', color='green', label='Buy', alpha=0.8)
         ax.scatter(df.index[df[('signal', '')] == -1], df[('Close', symbol)][df[('signal', '')] == -1],
                 marker='v', color='red', label='Sell', alpha=0.8)
-        
         ax.legend()
         ax.grid(True)
         fig.tight_layout()
         st.pyplot(fig)
 
-elif MODE == "Portfolio Optimization":
+elif page == "Portfolio Optimization":
     st.header("Portfolio Optimization with Efficient Frontier")
     # Input Section
     tickers_input = st.text_input("Enter comma-separated stock tickers (e.g., TCS.NS, INFY.NS):")
@@ -150,11 +162,7 @@ elif MODE == "Portfolio Optimization":
                 valid_tickers.append(ticker)
             except Exception as e:
                 st.warning(f"Error with {ticker}: {e}")
-    
-        if not valid_tickers:
-            st.error("No valid stocks with sufficient data for ML prediction.")
-            st.stop()
-    
+                
         # Portfolio Optimization
         st.subheader("Portfolio Optimization (Efficient Frontier)")
         mu = expected_returns.mean_historical_return(adj_close_df[valid_tickers]) * 252
@@ -190,11 +198,9 @@ elif MODE == "Portfolio Optimization":
         st.subheader("Visualizations")
         fig, axs = plt.subplots(2, 2, figsize=(15, 10))
     
-        # Pie Chart
         axs[0, 0].pie([weights_dict[t] for t in valid_tickers], labels=valid_tickers, autopct='%1.1f%%', startangle=140)
         axs[0, 0].set_title("Optimal Portfolio Allocation")
     
-        # Efficient Frontier
         ef_plot = EfficientFrontier(mu, S, weight_bounds=(0, 1))
         plotting.plot_efficient_frontier(ef_plot, ax=axs[0, 1], show_assets=False)
         for ticker in valid_tickers:
@@ -202,36 +208,27 @@ elif MODE == "Portfolio Optimization":
         axs[0, 1].scatter(port_volatility, port_return, marker='*', color='r', s=200, label='Optimal Portfolio')
         axs[0, 1].set_title('Efficient Frontier')
         axs[0, 1].legend()
-    
-        # Historical Performance
+
         log_returns = np.log(adj_close_df[valid_tickers] / adj_close_df[valid_tickers].shift(1)).dropna()
-        portfolio_value = (log_returns.mul([weights_dict[t] for t in valid_tickers], axis=1)
-                           .sum(axis=1)).cumsum().apply(np.exp)
+        portfolio_value = (log_returns.mul([weights_dict[t] for t in valid_tickers], axis=1).sum(axis=1)).cumsum().apply(np.exp)
         axs[1, 0].plot(portfolio_value.index, portfolio_value, label="Optimized Portfolio")
         axs[1, 0].set_title("Historical Portfolio Performance")
         axs[1, 0].grid(True)
         axs[1, 0].legend()
-    
-        axs[1, 1].axis('off')  # empty
-    
+        axs[1, 1].axis('off')  
         st.pyplot(fig)
 
-
-elif MODE == "Stock Price Prediction":
-    today = datetime.today().strftime('%Y-%m-%d')
+elif page== "Stock Price Prediction":
     st.header("Stock Price Prediction with Random Forest")
-    
     ticker = st.text_input("Enter Ticker:","HAL.NS")
     df = yf.download(ticker, period='5y', interval='1d', auto_adjust=True)
     df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
     df.dropna(inplace=True)
     df['Target'] = df['Close'].shift(-1)
     df.dropna(inplace=True)
-
     X = df[['Open', 'High', 'Low', 'Volume']]
     y = df['Target']
     X_train, X_test, y_train, y_test = train_test_split(X, y, shuffle=False, test_size=0.2, random_state=42)
-
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
@@ -242,10 +239,10 @@ elif MODE == "Stock Price Prediction":
     fig, ax = plt.subplots(figsize=(12, 4))
     ax.plot(y_test.values, label='Actual', color='blue')
     ax.plot(y_pred, label='Predicted', color='red')
-    ax.set_title(f"Stock Price Prediction for {ticker}")
+    ax.set_title(f"Price Prediction for {ticker}")
     ax.set_xlabel("Days")
     ax.set_ylabel("Price")
     ax.legend()
     ax.grid(True)
-    st.pyplot(fig)
+    st.pyplot(fig)   
     
