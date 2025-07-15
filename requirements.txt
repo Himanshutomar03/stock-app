@@ -2,6 +2,7 @@ streamlit
 yfinance
 pandas
 numpy
+ta
 matplotlib
 scipy
 PyPortfolioOpt
