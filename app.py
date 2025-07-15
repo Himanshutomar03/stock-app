@@ -3,6 +3,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import ta
 from datetime import datetime, timedelta
 from scipy.signal import argrelextrema
 from pypfopt import EfficientFrontier, risk_models, expected_returns, plotting
@@ -217,9 +218,11 @@ elif MODE == "Portfolio Optimization":
 
 
 elif MODE == "Stock Price Prediction":
+    today = datetime.today().strftime('%Y-%m-%d')
     st.header("Stock Price Prediction with Random Forest")
+    
     ticker = st.text_input("Enter Ticker:","HAL.NS")
-    df = yf.download(ticker, period='10d', interval='30m', auto_adjust=True)[['Open', 'High', 'Low', 'Close', 'Volume']]
+    df = yf.download(ticker, period='1y', interval='1d', auto_adjust=True)[['Open', 'High', 'Low', 'Close', 'Volume']]
     df.dropna(inplace=True)
     df['Target'] = df['Close'].shift(-1)
     df.dropna(inplace=True)
