@@ -19,17 +19,28 @@ page = st.sidebar.radio("Navigation", ["About", "Stock Price Prediction", "Break
 if page == "About":
     st.header("About This App")
     st.markdown("""
-    This is a Streamlit web app that uses Machine Learning and Modern Portfolio Theory to predict stock prices ,price breakout, stock returns and optimize your     portfolio for maximum performance and helps you make smarter portfolio decisions.
-    This **Stock Price Prediction & Portfolio Optimization** app is built using **Streamlit** and several popular Python libraries like:
-    - `yfinance` for financial data
-    - `XGBoost` and `Random Forest` for machine learning predictions
-    - `PyPortfolioOpt` for portfolio optimization
-    - `Matplotlib` for plotting
-    
+    This is a Streamlit web app that uses Machine Learning and Modern Portfolio Theory to predict stock prices, price breakouts, and stock returns, and optimize your portfolio for maximum performance — helping you make smarter investment decisions.
+
+    This **Stock Price Prediction & Portfolio Optimization** app is built using **Streamlit** and several popular Python libraries:
+    - `yfinance` — fetches historical financial data
+    - `XGBoost` and `Random Forest` — machine learning models for predictions
+    - `PyPortfolioOpt` — Efficient Frontier portfolio optimization
+    - `scikit-learn` — model training, evaluation, and hyperparameter tuning
+    - `Matplotlib` — interactive charts and visualizations
+    - `SciPy` — signal processing for support/resistance detection
+
     ### Features
-    - **Breakout Strategy** with support & resistance signals
-    - **Stock Price Prediction** using Random Forest Regressor
-    - **Portfolio Optimization** using Efficient Frontier and ML-predicted returns
+    - 📈 **Stock Price Prediction** using Random Forest with technical indicators (MA5, MA20, RSI)
+      - Displays R², MAE, RMSE, and MSE metrics
+      - Overlays 5-day and 20-day moving averages on recent price chart
+    - 📊 **Breakout Strategy** with support & resistance signals
+    - 💼 **Portfolio Optimization** using Efficient Frontier and XGBoost-predicted returns
+      - Discrete capital allocation across selected stocks
+      - Visualizes efficient frontier, pie chart, and historical portfolio performance
+
+    ### Supported Markets
+    - 🇺🇸 US stocks (e.g., `AAPL`, `MSFT`, `TSLA`)
+    - 🇮🇳 Indian stocks (e.g., `TCS.NS`, `INFY.NS`, `HAL.NS`)
     ---
     """)
 
@@ -224,17 +235,37 @@ elif page== "Stock Price Prediction":
     df = yf.download(ticker, period='5y', interval='1d', auto_adjust=True)
     df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
     df.dropna(inplace=True)
+
+    # Add technical indicator features
+    df['MA5'] = df['Close'].rolling(window=5).mean()
+    df['MA20'] = df['Close'].rolling(window=20).mean()
+    delta = df['Close'].diff()
+    gain = delta.where(delta > 0, 0)
+    loss = -delta.where(delta < 0, 0)
+    avg_gain = gain.rolling(window=14).mean()
+    avg_loss = loss.rolling(window=14).mean()
+    rs = np.where(avg_loss == 0, 0, avg_gain / avg_loss)
+    df['RSI'] = 100 - (100 / (1 + rs))
     df['Target'] = df['Close'].shift(-1)
     df.dropna(inplace=True)
-    X = df[['Open', 'High', 'Low', 'Volume']]
+
+    X = df[['Open', 'High', 'Low', 'Volume', 'MA5', 'MA20', 'RSI']]
     y = df['Target']
     X_train, X_test, y_train, y_test = train_test_split(X, y, shuffle=False, test_size=0.2, random_state=42)
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
 
-    st.write("### R² Score:", r2_score(y_test, y_pred))
-    st.write("### MSE:", mean_squared_error(y_test, y_pred))
+    mae = mean_absolute_error(y_test, y_pred)
+    mse = mean_squared_error(y_test, y_pred)
+    rmse = np.sqrt(mse)
+    r2 = r2_score(y_test, y_pred)
+
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("R² Score", f"{r2:.4f}")
+    col2.metric("MAE", f"{mae:.2f}")
+    col3.metric("RMSE", f"{rmse:.2f}")
+    col4.metric("MSE", f"{mse:.2f}")
 
     fig, ax = plt.subplots(figsize=(12, 4))
     ax.plot(y_test.values, label='Actual', color='blue')
@@ -244,5 +275,20 @@ elif page== "Stock Price Prediction":
     ax.set_ylabel("Price")
     ax.legend()
     ax.grid(True)
-    st.pyplot(fig)   
+    st.pyplot(fig)
+
+    # Moving average overlay on recent close prices
+    st.subheader("Moving Averages (Last 90 Days)")
+    recent = df.tail(90)
+    fig2, ax2 = plt.subplots(figsize=(12, 4))
+    ax2.plot(recent.index, recent['Close'], label='Close Price', linewidth=1.5)
+    ax2.plot(recent.index, recent['MA5'], label='MA5', linestyle='--', color='orange')
+    ax2.plot(recent.index, recent['MA20'], label='MA20', linestyle='--', color='purple')
+    ax2.set_title(f"Close Price with Moving Averages – {ticker}")
+    ax2.set_xlabel("Date")
+    ax2.set_ylabel("Price")
+    ax2.legend()
+    ax2.grid(True)
+    fig2.tight_layout()
+    st.pyplot(fig2)
     
